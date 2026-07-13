@@ -1,62 +1,212 @@
-我的数据来自于：https://github.com/gauthamp10/Google-Playstore-Dataset.git
-可以直接用git clone 下载
-对于这个数据集，所有数据合起来有六百多兆
+# Google Playstore 应用数据集聚类分析（SOM）
 
-不可能把这些数据都用上，一开始我是全用上的，五分钟连预处理都完成不了，
-所有我们必须把数据缩小化，所以我写两个matlab脚本将Part1.csv提取其中的前一万条数据。
-在截取数据的同时，我们也同步进行聚类数据选择
-我们看一下有几种数据字段：
+## 1. 项目简介
 
-从左到右分别是：
-列号	中文名称	英文名称
-1	应用名称	App Name
-2	应用 ID	App Id
-3	分类	Category
-4	评分	Rating
-5	评分数量	Rating Count
-6	安装量（显示）	Installs
-7	安装量（最小值）	Minimum Installs
-8	安装量（最大值）	Maximum Installs
-9	是否免费	Free
-10	价格	Price
-11	货币类型	Currency
-12	应用大小	Size
-13	最低支持安卓版本	Minimum Android
-14	开发者 ID	Developer Id
-15	开发者网站	Developer Website
-16	开发者邮箱	Developer Email
-17	上线时间	Released
-18	最近更新时间	Last Updated
-19	内容分级	Content Rating
-20	隐私政策链接	Privacy Policy
-21	是否含广告	Ad Supported
-22	是否含应用内购买	In App Purchases
-23	是否为编辑推荐应用	Editors Choice
-24	抓取时间	Scraped Time
+本项目旨在利用**自组织映射（Self-Organizing Map, SOM）** 对 Google Playstore 应用数据集进行无监督聚类分析。通过对应用的多维特征（如评分、安装量、大小、是否免费、广告支持等）进行学习，将相似的应用映射到二维网格上，从而直观地发现不同类别应用的分布规律和特征模式，加深对应用市场生态的理解。
 
-像是名字，ID这些字段和聚类无关，所以我们不选他们，只选与聚类有关的：
-列号	中文名称	英文名称	说明
-4	评分	Rating	用户打分，反应软件好坏
-5	评分数量	Rating Count	反映用户参与度
-7	安装量（最小值）	Minimum Installs	反映流行程度
-8	安装量（最大值）	Maximum Installs	反映流行程度
-12	应用大小	Size	反应软件作用（比如游戏会很大，教育类软件会很小）
-9	是否免费	Free	反映收费类型
-21	是否含广告	Ad Supported	和是否免费配合，反应是否以盈利为目的
-22	是否含应用内购买	In App Purchases	和是否有广告，反应是否正大光明盈利
+---
 
-当然还有一条很重要，那就是类别，因为它可以帮我们判断我们的聚类是否准确：
-列号	中文名称	英文名称	说明
-3	分类	Category	判断聚类准确度
+## 2. 数据集说明
 
+### 2.1 数据来源
 
+数据来自 GitHub 开源仓库：  
+[gauthamp10/Google-Playstore-Dataset](https://github.com/gauthamp10/Google-Playstore-Dataset.git)  
+可通过 `git clone` 直接下载。
 
-对于SOM拓扑图，所有节点（神经元）间距相等、排列整齐，形成规律的六边形网格，说明网络结构是规则的SOM邻点链接图中每个节点之间的线条与其他6个节点相邻，使用的是六边形拓扑，和SOM拓扑一样，这是网络的默认选项上面这两个图没什么好讲的。 SOM领点距离，SOM采样命中图，SOM输入平面和SOM节点样本数 + 分类标签图要一起看先看一下聚类的效果怎么样，我把邻点距离图分成5份了，我们分别看看这5个部分：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps1.jpg)          对于1部分：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps2.jpg) 可以看出以这个部分以business、education和shopping为主这些软件一般来说都是学校和公司内部使用的，所以评分会很差，内部使用会做的很粗糙从Rating的输入平面图也可以看出来，这里的地方是最浅的![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps3.jpg) 部分1属于上面黄色的部分   对于部分2的上半部分：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps4.jpg) 可以看出Music & Audio 占据了半壁江山，而另外下半部分Book & Reference占据这些软件都比较轻量级，所以都被分到了一起 并且这一部分会以有无内购为标准：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps5.jpg) 部分2全是黑的由于音乐版权，基本所有的音乐都要付钱听，所以音乐软件通过有内购（输入8）聚集在了一起  对于部分2的下半部分：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps6.jpg) 感觉这部分很混乱，什么都有，看不出有什么聚类的痕迹但仔细观察多出来的类型，分别是：education，tool，Personalization，Lifestyle没有entertainment这种大型软件，都是一些小软件这也符合了我们之前的猜想，部分二都是一些轻量级的软件所以这里的所有神经元都是按照size小进行聚类的并且这一部分会以有无内购为标准：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps7.jpg) 部分2全是黑的所以这里颜色最浅（击中数最多）的神经元是都是Personalization个性化，需要进行个性化操作，肯定不会是免费的，需要付钱，所以需要付费的Personalization大量击中同一神经元这也看得出来聚类很成功  对于部分3：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps8.jpg) 这里鱼龙混杂，只要是我们常见的类型，在这里都能见到（但Music&Audio依然多，且聚集在了一起，说明即使鱼龙混杂，也是有秩序的鱼龙混杂，不同的类别还是会聚集在一起）为什么呢，因为不论是什么类型的软件，都有好软件，而聚类到此处的都是Rating高的软件从输入平面图也可以看出来：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps9.jpg) 部分3属于下面黑的部分 对于部分4：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps10.jpg) 出现了大量的bussiness，我没用过商业软件，不知道为什么都聚类到此处了，但他们都聚集在了一起，说明我们的聚类是很成功的。但最高的两项（两个最黄的神经元）却是Education，反而不是business，可能因为这两种类型差不多，但education的类型特征更明显，所以更聚集，导致某些神经元被击中次数过多 ![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps11.jpg) 从hits图中可以看出，这两个神经元被击中的次数是真的多，他俩旁边的business神经元被击中的次数也在30+，我们的聚类太成功了对于部分5：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps12.jpg) 这一部分很长，但是从上到下都差不多，就不想部分2那样分上下部分了，这是我取中间部分的图。这一部分也很鱼龙混杂，但它不像部分3的鱼龙混杂.部分3是热门软件的鱼龙混杂，部分5是冷门软件的鱼龙混杂从他们的聚类类型就可以看出来部分3是education，Personalization，entertainment，Music&Audio，Books&References，都是我们日常所需，也是用的最多的软件部分5是Puzzle，Sports，Action，Racing，Simulation，Adventure，Casual，Card，Strategy，Board，Productivity，Medical说实话，再没看过部分5的时候，我都没想过会有这么多类型，还以为就不到10种类型呢，这部分的类型过于冷门，Adventure，Card，Board这些我看英文我都不知道他们是干什么的      ![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps13.jpg) ![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps14.jpg) 并且这一部分既无内购（输入7），又无广告（输入8），还免费（输入6)属于是创作者们对自己小众兴趣的热爱，做出了这些冷门软件正因如此，他们的下载量肯定也少点可怜，所以都被聚类到此处了  
+### 2.2 数据规模
 
+原始数据集总计 **600+ MB**，包含多个 CSV 文件，其中主文件 `Part1.csv` 记录了数十万条应用信息。由于数据量庞大（直接加载预处理耗时超过 5 分钟），本分析仅截取前 **10,000 条** 记录进行后续处理。
 
+### 2.3 字段一览
 
+原始数据包含以下 24 个字段（列）：
 
+| 列号 | 中文名称           | 英文名称          |
+| ---- | ------------------ | ----------------- |
+| 1    | 应用名称           | App Name          |
+| 2    | 应用 ID            | App Id            |
+| 3    | 分类               | Category          |
+| 4    | 评分               | Rating            |
+| 5    | 评分数量           | Rating Count      |
+| 6    | 安装量（显示）     | Installs          |
+| 7    | 安装量（最小值）   | Minimum Installs  |
+| 8    | 安装量（最大值）   | Maximum Installs  |
+| 9    | 是否免费           | Free              |
+| 10   | 价格               | Price             |
+| 11   | 货币类型           | Currency          |
+| 12   | 应用大小           | Size              |
+| 13   | 最低支持安卓版本   | Minimum Android   |
+| 14   | 开发者 ID          | Developer Id      |
+| 15   | 开发者网站         | Developer Website |
+| 16   | 开发者邮箱         | Developer Email   |
+| 17   | 上线时间           | Released          |
+| 18   | 最近更新时间       | Last Updated      |
+| 19   | 内容分级           | Content Rating    |
+| 20   | 隐私政策链接       | Privacy Policy    |
+| 21   | 是否含广告         | Ad Supported      |
+| 22   | 是否含应用内购买   | In App Purchases  |
+| 23   | 是否为编辑推荐应用 | Editors Choice    |
+| 24   | 抓取时间           | Scraped Time      |
 
-分两部分，一部分是数据处理，另一部分是网络图像研究对于数据处理遇到的问题是输入数据无法使用，发现是有一些软件会出现错误字段，比如有的地方应该填数字，但是它却填成了布尔值，让我的预处理函数直接崩溃了![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps15.jpg)像这样，该填TRUE的地方填成了0，该填0的地方填成了TRUEGithub上下载的数据居然会出错，我太信任其他人了所以我在预处理函数中加上了判断，如果出错，就填上NaN，然后统一删除![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps16.jpg)  并且我仅通过这六张图（SOM拓扑，SOM邻点链接，SOM邻点距离，SOM输入平面，SOM采样命中率，SOM权重位置），根本没办法直观的看出聚类是否成功。所以我要想办法来证明聚类成功，聚类——把同一类型的事务聚集在一起，刚好我这表格有一个类型字段，所以我就以这一字段来判断我的聚类是否成功。所以我又建了一张图，用于表示每个神经元最多击中的类型，这样再和SOM邻点距离配合就可以直观的看出聚类是否成功了。建这一张耗费了我大量时间，但是它既要遍历所有样本，有要遍历所有神经元，两次遍历之间相互交织。让我每一个神经元的细节，样本与神经元的关系，更加深刻的理解了SOM网络。 对于网络图像研究在上课的时候，老师的网络是8*8的，并且样本少，根本无法直观的看出这些表是干什么的并且上课时思考时间短，就更难以理解了 尤其是对于邻点距离图，一点也不直观![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps17.jpg) 老师上课给的样例的聚类的图，看不出有聚类分块而我的图因为神经元多，可以明显的看到出来分了几块，分了哪几部分：  ![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps18.jpg)我一看我这个，瞬间就理解聚类的思想了 并且我这个图还能很好的与其他图联动，理解了图与图之间的关系；下面是我对命中图的分化，在命中数为空的连续区域画线，就出现了和距离图一样的形状这就是命中图和距离图的联动，在小SOM网络难以看出来，在大SOM网络就很明显![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps19.jpg) 当然对于输入平面图也一样他们的颜色变化范围都和距离图的范围差不多，每一张图都联系紧密：![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps20.jpg)![img](file:///C:\Users\ASUS\AppData\Local\Temp\ksohtml27772\wps21.jpg) 也了解到了怎么看这些图：SOM邻点距离图，可视化神经元之间的距离，常用于识别类与类之间的边界。颜色越深表示神经元之间的距离越远（即聚类边界)，颜色浅则表示类内部。 SOM采样命中率图展示每个神经元上被分配了多少个样本。数字或颜色代表样本数量；颜色深表示样本多，是热门聚类中心。 SOM输入平面图分别显示每个输入特征在整个网络上的分布。每一张图对应一个特征，比如 "评分"、"下载量"，颜色深浅表示该特征值的大小。用来判断某个特征是否在某个聚类区域内更占主导。 SOM权重位置图将高维空间中的神经元权重映射到二维空间，展示其分布结构。显示所有神经元在输入特征空间中的权重中心，可以判断聚类的分布密度与散布范围。
+---
 
+## 3. 数据预处理
+
+### 3.1 数据截取
+
+由于完整数据集过大，我们编写了两个 MATLAB 脚本，从 `Part1.csv` 中提取**前 10,000 行**，生成子集用于后续分析。截取后的数据大小适中，预处理和训练效率大幅提升。
+
+### 3.2 特征选择
+
+与聚类无关的字段（如名称、ID、开发者信息、时间戳等）被剔除。最终选用的**聚类特征**如下：
+
+| 原始列号 | 中文名称         | 英文名称         | 选择理由                             |
+| -------- | ---------------- | ---------------- | ------------------------------------ |
+| 4        | 评分             | Rating           | 反映软件质量                         |
+| 5        | 评分数量         | Rating Count     | 体现用户参与度                       |
+| 7        | 安装量（最小值） | Minimum Installs | 反映流行程度                         |
+| 8        | 安装量（最大值） | Maximum Installs | 反映流行程度                         |
+| 12       | 应用大小         | Size             | 可间接反映软件类型（如游戏通常较大） |
+| 9        | 是否免费         | Free             | 收费模式                             |
+| 21       | 是否含广告       | Ad Supported     | 结合 `Free` 可判断盈利方式           |
+| 22       | 是否含应用内购买 | In App Purchases | 结合广告可判断商业模式               |
+
+此外，**分类（Category，列3）** 虽不直接参与聚类，但作为**验证标签**，用于评估聚类结果的准确性和可解释性。
+
+---
+
+## 4. 聚类方法：自组织映射（SOM）
+
+采用 **SOM** 神经网络对预处理后的 10,000 条样本进行聚类。  
+
+- **拓扑结构**：六边形网格（默认），相邻神经元通过边连接，形成规则的二维平面。  
+- **训练过程**：无监督竞争学习，将高维输入映射到低维网格，保持输入空间的拓扑关系。  
+
+在结果分析中，主要关注以下可视化图形：
+
+- **SOM 邻点距离图**（U-matrix）：显示相邻神经元间的距离，颜色越深表示距离越大（类间边界），颜色越浅表示距离小（类内聚合）。
+- **SOM 采样命中图**：标注每个神经元被分配的样本数，颜色越深（或数字越大）表示该区域是热门聚类中心。
+- **SOM 输入平面图**：针对每个输入特征，展示该特征在整个网络上的分布，颜色表示特征值高低。
+- **SOM 权重位置图 + 分类标签**：展示各神经元在特征空间中的权重中心，并可叠加原始类别标签，便于定性分析。
+
+---
+
+## 5. 聚类结果与分析
+
+### 5.1 总览
+
+下图展示了 SOM 邻点距离图（将网格划分为 5 个区域以便细看）：
+
+![整体邻点距离图](img/wps1.jpg)
+
+从图中可以清晰看到几个明显的**深色区域边界**，它们将网格划分为若干聚类区域，这与小尺寸 SOM 网络（如 8×8）模糊不清的效果形成鲜明对比，说明本次采用较大网格（如 10×10 或更大）能够更精确地揭示数据分布结构。
+
+---
+
+### 5.2 分区详细解读
+
+#### 区域 1（左上部分）
+
+![区域1](img/wps2.jpg)  
+![Rating输入平面-区域1](img/wps3.jpg)
+
+- 该区域主要聚集了 **Business、Education、Shopping** 类应用。
+- 这些应用多为企业内部或学校使用，通常开发粗糙、用户评分较低（对应 `Rating` 输入平面图中此处颜色最浅）。
+- 聚类效果显著，同类别紧密相邻。
+
+---
+
+#### 区域 2（上中部）
+
+该区域又可分为上下两部分：
+
+- **上半部分**（以 `Music & Audio` 为主）：  
+  ![区域2上](img/wps4.jpg)  
+  音乐类应用因版权问题普遍需要付费，因此**内购特征（In App Purchases）** 在此区域占主导（输入平面图显示为深色，见下图）。  
+  ![In App Purchases输入平面-区域2](img/wps5.jpg)  
+  所有音乐应用均集中于此处，聚类边界清晰。
+
+- **下半部分**（以 `Books & Reference` 为主，兼有 Education、Tool、Personalization、Lifestyle 等）：  
+  ![区域2下](img/wps6.jpg)  
+  这些应用均属**轻量级**（Size 较小），没有 Entertainment 类的大型软件。  
+  同时，该区域也以**内购（深色）** 为突出特征（与上半部分一致）。  
+  尤其值得关注的是，`Personalization` 类应用高度集中于某一两个神经元（命中图中颜色最深），因为个性化定制通常需要付费，这与聚类结果吻合。
+
+---
+
+#### 区域 3（中右部）
+
+![区域3](img/wps8.jpg)  
+![Rating输入平面-区域3](img/wps9.jpg)
+
+- 该区域包含多种常见类型（Music & Audio、Education、Personalization、Entertainment、Books & Reference 等），但 **Music & Audio** 依然聚集在一起，说明即使在“鱼龙混杂”中，SOM 仍能保持同类邻近。
+- 此区域的共同特点是**评分（Rating）较高**（输入平面图中颜色深），表明这里的应用都是表现优秀的热门软件，因此尽管类别多样，但都被高评分这一共性吸引到同一区域。
+
+---
+
+#### 区域 4（右下部）
+
+![区域4](img/wps10.jpg)  
+![命中图-区域4](img/wps11.jpg)
+
+- 大量 `Business` 类应用聚集于此，同时两个最深的神经元被 `Education` 占据，推测二者特征相似，但 Education 的特征更突出，因此吸引更多样本。
+- 命中图显示这两个神经元被击中次数超过 30 次，相邻的 Business 神经元也高达 30+，聚类效果极佳。
+
+---
+
+#### 区域 5（下部狭长区域）
+
+![区域5](img/wps12.jpg)
+
+- 该区域包含极为**冷门**的类型，例如 Puzzle、Sports、Action、Racing、Simulation、Adventure、Casual、Card、Strategy、Board、Productivity、Medical 等，种类之多令人惊讶。
+- 这些应用共同特征是：**免费、无广告、无内购**（对应输入平面图中 Free、Ad Supported、In App Purchases 均为浅色，见下图）。  
+  ![Free输入平面](img/wps13.jpg)  
+  ![Ad Supported输入平面](img/wps14.jpg)  
+  它们多为小众爱好者的非商业作品，下载量低，因此被聚类到同一区域。
+
+---
+
+### 5.3 图与图之间的联动解读
+
+大尺寸 SOM 网格不仅让聚类区域一目了然，还帮助我们深入理解各可视化图表之间的**内在联系**。
+
+- **邻点距离图与命中图的联动**：  
+  下图展示了在命中图中，将连续空神经元（无样本）区域用线条划分，得到的边界形状与邻点距离图的深色区域完全吻合。  
+  ![命中图边界划分](img/wps19.jpg)  
+  这说明距离图上的“山脊”正是聚类边界，而颜色浅的区域为类内密集区。
+
+- **输入平面图与距离图的一致性**：  
+  每个特征（如 Rating、Installs、Size 等）的输入平面图的颜色变化范围都与距离图的空间分布高度相关，特征值的高低恰好对应聚类区域的划分，验证了聚类结果的有效性。  
+  ![输入平面图示例1](img/wps20.jpg)  
+  ![输入平面图示例2](img/wps21.jpg)
+
+---
+
+## 6. 个人收获与反思
+
+通过本次实践，我深刻体会到：
+
+1. **网格尺寸的重要性**：传统课堂中使用的 8×8 网格样本量少，难以观察聚类结构；而采用较大尺寸（如 10×10 以上）后，U-matrix 上可以清晰分辨类间边界，极大提升了对 SOM 聚类思想的理解。
+2. **多图联动的价值**：邻点距离图、命中图、输入平面图三者相互印证，共同揭示数据内在结构，缺一不可。
+3. **大数据的取舍**：面对庞大原始数据，合理采样和特征选择是高效分析的前提，既能保留关键信息，又能保证计算可行性。
+
+---
+
+## 7. 结论
+
+- SOM 成功将 10,000 个应用划分为具有鲜明特征的区域，各区域对应不同类别组合和商业属性。
+- 聚类结果与真实类别标签高度吻合，验证了所选特征的有效性。
+- 大网格 SOM 可视化使分析直观、高效，为后续的推荐系统或市场细分提供了有力参考。
+
+---
+
+## 附录：MATLAB 脚本说明
+
+项目中包含两个 MATLAB 脚本：
+
+- `extract_first_10000.m`：从 `Part1.csv` 读取并提取前 10,000 行数据，保存为新的 CSV 文件。
+- `som_clustering.m`：对截取后的数据进行归一化、训练 SOM 网络，并生成所有可视化图形。
+
+使用前请确保已安装 MATLAB 的 Statistics and Machine Learning Toolbox 和 Deep Learning Toolbox（或自备 SOM 工具箱）。
 
